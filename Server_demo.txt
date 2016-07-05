@@ -1,0 +1,10 @@
+[serverConfig]
+WSDL_URL: http://WS.SOAP.OFG/pp1.wsdl
+login: 1234
+password: 5678
+
+[postgresConfig]
+db: postgres
+username: postgres
+password: postgres
+hostname: localhost

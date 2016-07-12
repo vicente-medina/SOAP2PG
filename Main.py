@@ -7,7 +7,8 @@ from lxml import etree
 from PyQt5.QtWidgets import QApplication, QWidget, QMessageBox
 from fechasGui import Ui_Dialog
 from PyQt5 import QtSql
-
+from PyQt5.QtGui import QCursor
+from PyQt5.QtCore import Qt
 
 
 class ui_Dialog(QWidget):
@@ -58,6 +59,9 @@ class ui_Dialog(QWidget):
         self.desdeText = self.ui.fechaDesde.text()
         self.hastaText = self.ui.fechaHasta.text()
 
+        # Set cursor
+        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+
         # Run
         client = Client(wsdl=self.WSDL_URL)
         self.xmlResponse = client.service.GetServiciosPorVehiculo(login=self.LOGIN, password=self.PASSWORD, fechaDesde=self.desdeText, fechaHasta=self.hastaText)
@@ -66,6 +70,7 @@ class ui_Dialog(QWidget):
         # to database
         self.uploadToPosgreSQL()
 
+        QApplication.restoreOverrideCursor()
 
     def uploadToPosgreSQL(self):
 
@@ -118,7 +123,7 @@ class ui_Dialog(QWidget):
                         registro[2].text + "','" +
                         registro[3].text + "','" +
                         registro[6].text + "'," +
-                        "ST_SetSRID(ST_MakePoint(" + registro[4].text + "," + registro[5].text + "),4326))"
+                        "ST_SetSRID(ST_MakePoint(" + registro[5].text + "," + registro[4].text + "),4326))"
                         )
 
         return True

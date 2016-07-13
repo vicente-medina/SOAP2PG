@@ -70,7 +70,16 @@ class ui_Dialog(QWidget):
         # to database
         self.uploadToPosgreSQL()
 
+        # Get the vehicles id
+        self.xmlResponse = client.service.GetVehiculos(login=self.LOGIN, password=self.PASSWORD)
+        print(self.xmlResponse)
+
+        # to database
+        self.uploadVehiclesToPosgreSQL()
+
+        # Default cursor
         QApplication.restoreOverrideCursor()
+
 
     def uploadToPosgreSQL(self):
 
@@ -78,15 +87,15 @@ class ui_Dialog(QWidget):
         self.readPGConfig()
 
         # Set database
-        db = QtSql.QSqlDatabase.addDatabase('QPSQL')
-        db.setDatabaseName(self.dbName)
+        self.db = QtSql.QSqlDatabase.addDatabase('QPSQL')
+        self.db.setDatabaseName(self.dbName)
 
         # Set user data
-        db.setUserName(self.dbUsername)
-        db.setPassword(self.dbPassword)
-        db.setHostName(self.dbHostName)
+        self.db.setUserName(self.dbUsername)
+        self.db.setPassword(self.dbPassword)
+        self.db.setHostName(self.dbHostName)
 
-        if not db.open():
+        if not self.db.open():
             QMessageBox.critical(None, "Cannot open database",
                                        "Unable to establish a database connection.\n",
                                        QMessageBox.Cancel)
@@ -95,10 +104,10 @@ class ui_Dialog(QWidget):
 
 
         # Query
-        query = QtSql.QSqlQuery()
+        self.query = QtSql.QSqlQuery()
 
-        query.exec_("DROP TABLE IF EXISTS llicamunt.servicios_por_vehiculo")
-        query.exec_("CREATE TABLE llicamunt.servicios_por_vehiculo("
+        self.query.exec_("DROP TABLE IF EXISTS llicamunt.servicios_por_vehiculo")
+        self.query.exec_("CREATE TABLE llicamunt.servicios_por_vehiculo("
                     "id_vehiculo text NOT NULL,"
                     "matricula text NOT NULL,"
                     "tipoVehiculo text,"
@@ -117,7 +126,7 @@ class ui_Dialog(QWidget):
         for registro in registros:
             print("%10s %10s %14s %20s %10s %10s %14s %20s %10s %10s %14s %20s %10s %10s %14s %20s" % (registro[0].text, registro[1].text, registro[2].text, registro[3].text, registro[4].text, registro[5].text, registro[6].text, registro[7].text, registro[8].text, registro[9].text, registro[10].text, registro[11].text, registro[12].text, registro[13].text, registro[14].text, registro[15].text))
 
-            query.exec_("INSERT INTO llicamunt.servicios_por_vehiculo values('" +
+            self.query.exec_("INSERT INTO llicamunt.servicios_por_vehiculo values('" +
                         registro[0].text + "','" +
                         registro[1].text + "','" +
                         registro[2].text + "','" +
@@ -128,10 +137,44 @@ class ui_Dialog(QWidget):
 
         return True
 
-    def xstr(s):
-        if s is None:
-            return ''
-        return str(s)
+
+
+    def uploadVehiclesToPosgreSQL(self):
+
+        self.query.exec_("DROP TABLE IF EXISTS llicamunt.vehiculos")
+        self.query.exec_("CREATE TABLE llicamunt.vehiculos("
+                    "matricula text NOT NULL,"
+                    "calca text,"
+                    "descripcion text,"
+                    "tipoVehiculo text,"
+                    "CONSTRAINT vehiculos_pkey PRIMARY KEY(matricula))")
+
+        # Parse xml response
+        registros = etree.fromstring(self.xmlResponse)
+
+        # Datos leidos
+        print("Datos de vehiculos leidos:\n\n")
+        print(" matricula    calca      descripcion     tipoVehiculo")
+        print("=========================================================")
+        for registro in registros:
+            print("%10s %10s %14s %20s" % (registro[0].text, registro[1].text, registro[2].text, registro[3].text))
+
+            if not self.query.exec_("INSERT INTO llicamunt.vehiculos values('" +
+                        registro[0].text + "','" +
+                        xstr(registro[1].text) + "','" +
+                        xstr(registro[2].text) + "','" +
+                        xstr(registro[3].text) + "')"
+                        ):
+                print(self.query.lastError())
+
+        return True
+
+
+# Filter NULL db responses
+def xstr(s):
+    if s is None:
+        return ''
+    return s
 
 
 if __name__ == '__main__':

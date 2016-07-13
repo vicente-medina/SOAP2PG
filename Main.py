@@ -77,6 +77,13 @@ class ui_Dialog(QWidget):
         # to database
         self.uploadVehiclesToPosgreSQL()
 
+        # Get the vehicles id
+        self.xmlResponse = client.service.GetPosicionesGPS(login=self.LOGIN, password=self.PASSWORD, fechadesde=self.desdeText, fechahasta=self.hastaText)
+        print(self.xmlResponse)
+
+        # to database
+        self.uploadGPSToPosgreSQL()
+
         # Default cursor
         QApplication.restoreOverrideCursor()
 
@@ -166,6 +173,55 @@ class ui_Dialog(QWidget):
                         xstr(registro[3].text) + "')"
                         ):
                 print(self.query.lastError())
+
+        return True
+
+
+    def uploadGPSToPosgreSQL(self):
+
+        self.query.exec_("DROP TABLE IF EXISTS llicamunt.posiciones_gps")
+        self.query.exec_("CREATE TABLE llicamunt.posiciones_gps("
+                         "id_vehiculo text NOT NULL,"
+                         "matricula text NOT NULL,"
+                         "fechaHora text,"
+                         "sensor1 text,"
+                         "sensor2 text,"
+                         "sensor3 text,"
+                         "evento text,"
+                         "the_geom geometry(Point,4326),"
+                         "CONSTRAINT posiciones_gps_pkey PRIMARY KEY(id_vehiculo, fechaHora))")
+
+        # Create view
+        self.query.exec_("CREATE OR REPLACE VIEW llicamunt.v_posiciones_gps AS "
+                         "SELECT min(gps.matricula) AS "
+                         "matricula, st_makeline(array_agg(gps.the_geom)) AS newgeom FROM "
+                         "(SELECT posiciones_gps.matricula, posiciones_gps.fechahora, "
+                         "posiciones_gps.sensor1, posiciones_gps.the_geom, posiciones_gps.evento "
+                         "FROM llicamunt.posiciones_gps ORDER BY posiciones_gps.fechahora) gps "
+                         "GROUP BY gps.matricula")
+
+        # Parse xml response
+        registros = etree.fromstring(self.xmlResponse)
+
+        # Datos leidos
+        print("Datos de GPS leidos:\n\n")
+        print(" idVehiculo        matricula           fechaHora     coordenadaX     coordenadaY   velocidad     sensor1     sensor2     sensor3     evento")
+        print("=========================================================")
+        for registro in registros:
+            print("%20s %10s %30s %20s %20s %10s %20s %20s %20s %10s" % (registro[0].text, registro[1].text, registro[2].text, registro[3].text, registro[4].text, registro[5].text, registro[6].text, registro[7].text, registro[8].text, registro[9].text))
+
+            if not self.query.exec_("INSERT INTO llicamunt.posiciones_gps values('" +
+                         registro[0].text + "','" +
+                         registro[1].text + "','" +
+                         registro[2].text + "','" +
+                         xstr(registro[6].text) + "','" +
+                         xstr(registro[7].text) + "','" +
+                         xstr(registro[8].text) + "','" +
+                         xstr(registro[9].text) + "'," +
+                         "ST_SetSRID(ST_MakePoint(" + registro[4].text + "," + registro[3].text + "),4326))"
+                        ):
+                print(self.query.lastError().text())
+
 
         return True
 

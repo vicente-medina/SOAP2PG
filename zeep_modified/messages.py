@@ -225,7 +225,7 @@ class DocumentMessage(SoapMessage):
             return retval
         return item
 
-# RPC Message
+# RPC Message = 23
 class RpcMessage(SoapMessage):
     """In RPC messages each part is a parameter or a return value and appears
     inside a wrapper element within the body.
